@@ -1,0 +1,19 @@
+websocket原理：客户端通过http协议，发送一个协议升级的http报文，服务器解析http报文，发现需要升级协议到websocket，判断http头的内容，看是否满足条件，
+满足然后返回一个http包同意切换协议。后续通信的时候，就是在tcp层面上发送websocket协议的数据包。在nodejs中，实现步骤是：
+- 监听upgrade事件，收到一个协议升级的http报文时，nodejs会触发该事件，处理http头，然后回复一个同意升级的http报文，并保存tcp层的socket。通过socket实现推送功能。适合客户端支持websocket协议的情况。
+- 监听request事件，nodejs在收到http请求时会触发这个事件。这种方式就和我们平时请求cgi一样。通过轮询的方式实现"推送"功能，适合客户端不支持websocket协议的情况。
+
+1 ws模块（https://www.processon.com/view/link/5ee72edff346fb1ae5638425）
+ws模块实现了websocket，通过阅读ws模块的代码，了解websocket的实现原理。ws模块分为几个子模块。
+
+1.1 websocket-server模块
+websocket-server实现了http到websocket协议升级的功能。他通过监听upgrade事件（由nodejs触发），然后根据websocket协议，对http头进行解析，进行一系列判断后，如果满足条件，则发送一个http回包给客户端。最后触发connection事件，并传入WebSocket对象（见1.2）。
+
+1.2 websocket模块
+websocket-server模块完成了http到websocket协议的升级后，websocket模块就开始负责websocket通信的逻辑。websocket模块里也分为几个子模块
+
+1.2.1 Receiver
+Receiver代表的是数据的接收者，当客户端给websocket服务器发送数据时，websocket服务器会调用Receiver的方法，把数据写入到Receiver中。接着Receiver根据websocket协议，解析出包的类型，然后触发对应的事件，比如message、ping、pong等事件。
+
+1.2.2 Sender
+Sender代表的是数据的消费者，内部封装了websocket协议。他调用tcp层的socket对象发送数据。应用层可以调用Sender模块的方法发送一个websocket包。
